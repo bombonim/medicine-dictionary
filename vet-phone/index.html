@@ -122,7 +122,7 @@ const SPECIES = {dog:'개', cat:'고양이'};
 const SEX = {M:'수컷', F:'암컷'};
 
 /* ---------- 기본 데이터 (예시 가격! 설정에서 꼭 수정하세요) ---------- */
-function R(o){ return Object.assign({id:uid(), label:'', option:'', species:'', sex:'', ageMin:null, ageMax:null, wMin:null, wMax:null, price:0}, o); }
+function R(o){ return Object.assign({id:uid(), label:'', option:'', species:'', sex:'', ageMin:null, ageMax:null, wMin:null, wMax:null, price:0, perKg:null}, o); }
 function A(label, price, unit=false){ return {id:uid(), label, price, unit}; }
 function O(name, species, items){ return {id:uid(), name, species, items}; }
 function checkupService(){
@@ -148,38 +148,48 @@ function checkupService(){
     addons:[A('심장 초음파', 80000), A('호르몬 검사', 60000), A('안과 검사', 30000)],
     notes:'검사 전 8시간 금식 (물은 가능).\n소요 시간 약 2~3시간, 결과 상담 포함.' };
 }
+// 가격표(표 형태) → 가격 줄. table[몸무게칸][나이칸], null은 비움
+const AGE_4_8 = [[null,4],[4,8],[8,null]];
+const AGE_8 = [[null,8],[8,null]];
+const W5 = [[null,5],[5,10],[10,15],[15,20],[20,25],[25,30]];
+function grid(label, extra, weights, ages, table){
+  const out = [];
+  weights.forEach(([wMin,wMax],i)=>ages.forEach(([ageMin,ageMax],j)=>{
+    const v = table[i]?.[j]; if(v!=null) out.push(R({label, ...extra, wMin, wMax, ageMin, ageMax, price:v}));
+  }));
+  return out;
+}
+function neuterService(){
+  return { id:uid(), name:'중성화', icon:'✂️', fields:{species:false, sex:true, age:true, weight:true},
+    options:[],
+    rules:[
+      ...grid('중성화 수술 (수컷)', {sex:'M'}, W5, AGE_4_8, [
+        [150000,200000,227000],[200000,250000,277000],[250000,300000,327000],
+        [300000,350000,377000],[375000,425000,452000],[450000,500000,527000]]),
+      ...grid('중성화 수술 (암컷)', {sex:'F'}, W5.slice(0,4), AGE_4_8, [
+        [300000,350000,377000],[350000,400000,427000],[400000,450000,477000],[450000,500000,527000]]),
+      R({label:'중성화 수술 (암컷)', sex:'F', wMin:20, ageMax:4, price:450000, perKg:10000}),
+      R({label:'중성화 수술 (암컷)', sex:'F', wMin:20, ageMin:4, ageMax:8, price:500000, perKg:10000}),
+      R({label:'중성화 수술 (암컷)', sex:'F', wMin:20, ageMin:8, price:527000, perKg:10000}),
+    ],
+    addons:[],
+    notes:'* 잠복고환 추가비용 별도 *\n수컷 30kg 이상은 가격표에 없음 → 상담' };
+}
+function scalingService(){
+  return { id:uid(), name:'스케일링', icon:'🦷', fields:{species:false, sex:false, age:true, weight:true},
+    options:[],
+    rules: grid('스케일링', {}, W5.slice(0,5), AGE_8, [
+      [250000,327000],[300000,377000],[350000,427000],[450000,527000],[550000,627000]]),
+    addons:[],
+    notes:'* 치과방사선/발치 비용 별도 *\n25kg 이상은 가격표에 없음 → 상담' };
+}
 function defaults(){
   return {
-    version:2,
+    version:3,
     services:[
       checkupService(),
-      { id:uid(), name:'스케일링', icon:'🦷', fields:{species:true, sex:false, age:true, weight:true},
-        options:[],
-        rules:[
-          R({label:'스케일링 (마취 포함)', species:'dog', wMax:5, price:200000}),
-          R({label:'스케일링 (마취 포함)', species:'dog', wMin:5, wMax:10, price:250000}),
-          R({label:'스케일링 (마취 포함)', species:'dog', wMin:10, wMax:20, price:300000}),
-          R({label:'스케일링 (마취 포함)', species:'dog', wMin:20, price:350000}),
-          R({label:'스케일링 (마취 포함)', species:'cat', price:230000}),
-          R({label:'마취 전 검사 (혈액·방사선)', ageMax:7, price:60000}),
-          R({label:'마취 전 정밀검사 (7세 이상)', ageMin:7, price:100000}),
-        ],
-        addons:[A('발치 (개당)', 20000, true), A('치과 방사선', 50000), A('불소 도포', 20000)],
-        notes:'전날 밤 10시 이후 금식.\n발치 여부는 마취 후 구강 상태 보고 결정 → 추가 비용 가능성 안내.' },
-      { id:uid(), name:'중성화', icon:'✂️', fields:{species:true, sex:true, age:false, weight:true},
-        options:[],
-        rules:[
-          R({label:'중성화 수술 (수컷)', species:'dog', sex:'M', wMax:10, price:250000}),
-          R({label:'중성화 수술 (수컷)', species:'dog', sex:'M', wMin:10, price:320000}),
-          R({label:'중성화 수술 (암컷)', species:'dog', sex:'F', wMax:5, price:350000}),
-          R({label:'중성화 수술 (암컷)', species:'dog', sex:'F', wMin:5, wMax:10, price:400000}),
-          R({label:'중성화 수술 (암컷)', species:'dog', sex:'F', wMin:10, price:480000}),
-          R({label:'중성화 수술 (수컷)', species:'cat', sex:'M', price:150000}),
-          R({label:'중성화 수술 (암컷)', species:'cat', sex:'F', price:300000}),
-          R({label:'마취 전 검사', price:60000}),
-        ],
-        addons:[A('잠복고환 추가', 100000), A('넥카라', 15000), A('입원 (1박)', 50000, true)],
-        notes:'수술 전 8시간 금식.\n실밥 제거: 수술 후 10~14일.\n발정 중에는 수술 불가할 수 있음.' },
+      scalingService(),
+      neuterService(),
     ],
     notes:[
       {id:uid(), title:'진료 시간', tags:['기본'], pinned:true, content:'평일 09:00 ~ 19:00\n토요일 09:00 ~ 15:00\n일요일·공휴일 휴진\n점심 13:00 ~ 14:00'},
@@ -202,6 +212,15 @@ function normalize(d){
     const i = d.services.findIndex(s=>s.name==='건강검진' && s.options.map(o=>o.name).join()==='기본,정밀');
     if(i>=0) d.services[i] = Object.assign(checkupService(), {id:d.services[i].id});
     d.version = 2;
+  }
+  // v2 → v3: 병원 실제 가격표로 중성화·스케일링 교체
+  if(d.version < 3){
+    [['중성화', neuterService], ['스케일링', scalingService]].forEach(([name, make])=>{
+      const i = d.services.findIndex(s=>s.name===name);
+      if(i>=0) d.services[i] = Object.assign(make(), {id:d.services[i].id, icon:d.services[i].icon||make().icon});
+      else d.services.push(make());
+    });
+    d.version = 3;
   }
   return d;
 }
@@ -246,7 +265,7 @@ function rangeText(min, max, unit){
   return '';
 }
 function condText(r){
-  return [r.option, SPECIES[r.species], SEX[r.sex], rangeText(r.wMin,r.wMax,'kg'), rangeText(r.ageMin,r.ageMax,'세')].filter(Boolean).join(' · ') || '항상';
+  return [r.option, SPECIES[r.species], SEX[r.sex], rangeText(r.wMin,r.wMax,'kg'), rangeText(r.ageMin,r.ageMax,'세'), r.perKg && r.wMin!=null ? `${r.wMin}kg 초과 kg당 +${won(r.perKg)}` : ''].filter(Boolean).join(' · ') || '항상';
 }
 function calculate(svc, inp){
   const missing = [];
@@ -262,7 +281,12 @@ function calculate(svc, inp){
     if(r.sex && f.sex && r.sex !== inp.sex) continue;
     const a = inRange(inp.age, r.ageMin, r.ageMax), w = inRange(inp.weight, r.wMin, r.wMax);
     if(a===false || w===false || a===null || w===null) continue;
-    lines.push({label:r.label, cond:condText(r), price:Number(r.price)||0});
+    let price = Number(r.price)||0, label = r.label;
+    if(r.perKg && r.wMin!=null && inp.weight!=null){
+      const over = Math.ceil(Math.round((inp.weight - r.wMin)*100)/100); // kg 단위 올림
+      if(over > 0){ price += over * r.perKg; label += ` (${won(r.price)} + ${over}kg × ${won(r.perKg)})`; }
+    }
+    lines.push({label, cond:condText(r), price});
   }
   for(const ad of svc.addons){
     const q = inp.addons[ad.id] || 0;
@@ -538,7 +562,7 @@ function renderEditService(id){
     <h2>가격표</h2>
     <p class="muted" style="margin-top:-4px;font-size:14px">조건에 맞는 줄이 <b>모두 더해집니다</b>. 빈 칸 = 상관없음. 범위는 "이상 ~ 미만" (예: 5 ~ 10kg 은 5kg 이상 10kg 미만).</p>
     <div class="card scroll"><table class="edit" id="rules">
-      <tr><th>내용</th>${s.options.length?'<th>종류</th>':''}<th>종</th><th>성별</th><th>kg 이상</th><th>kg 미만</th><th>나이 이상</th><th>나이 미만</th><th>가격(원)</th><th></th></tr>
+      <tr><th>내용</th>${s.options.length?'<th>종류</th>':''}<th>종</th><th>성별</th><th>kg 이상</th><th>kg 미만</th><th>나이 이상</th><th>나이 미만</th><th>가격(원)</th><th>초과 kg당(원)</th><th></th></tr>
       ${s.rules.map(r=>`<tr data-id="${r.id}">
         <td style="min-width:180px"><input data-k="label" value="${esc(r.label)}"></td>
         ${s.options.length?`<td>${sel('option', r.option, [['','전체'],...s.options.map(o=>[o.name,o.name])])}</td>`:''}
@@ -549,6 +573,7 @@ function renderEditService(id){
         <td><input data-k="ageMin" data-n type="number" step="0.5" value="${nv(r.ageMin)}"></td>
         <td><input data-k="ageMax" data-n type="number" step="0.5" value="${nv(r.ageMax)}"></td>
         <td style="min-width:110px"><input data-k="price" data-n type="number" step="1000" value="${nv(r.price)}"></td>
+        <td style="min-width:90px"><input data-k="perKg" data-n type="number" step="1000" value="${nv(r.perKg)}" title="kg 이상 값을 넘는 몸무게 1kg마다 더할 금액"></td>
         <td class="row" style="flex-wrap:nowrap"><button class="btn sm" data-dup title="복사">⧉</button><button class="btn sm danger" data-del title="삭제">✕</button></td></tr>`).join('')}
     </table>
     <button class="btn sm pri" id="addRule" style="margin-top:10px">+ 가격 줄 추가</button></div>
