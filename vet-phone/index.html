@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>전화응대 도우미</title>
+<meta name="claude:viewport-fit-sides" content="cover">
 <style>
 :root{
   --bg:#f5f7f8; --card:#fff; --ink:#1d2a30; --muted:#66757c; --line:#dde4e7;
@@ -13,18 +14,23 @@
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --bg:#12181b; --card:#1b2327; --ink:#e6eef0; --muted:#94a3a8; --line:#2c373c;
-    --accent:#3cc4b2; --accent-soft:#16332f; --warn:#f0b35a; --warn-soft:#3a2c14; --danger:#ef6f61;
+    --accent:#3cc4b2; --accent-soft:#16332f; --warn:#f0b35a; --warn-soft:#3a2c14; --danger:#ef6f61; color-scheme:dark;
   }
+}
+:root[data-theme="dark"]{
+  --bg:#12181b; --card:#1b2327; --ink:#e6eef0; --muted:#94a3a8; --line:#2c373c;
+  --accent:#3cc4b2; --accent-soft:#16332f; --warn:#f0b35a; --warn-soft:#3a2c14; --danger:#ef6f61; color-scheme:dark;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif}
 button,input,select,textarea{font:inherit;color:inherit}
-header{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line);
-  display:flex;gap:12px;align-items:center;padding:10px 16px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--card)}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--card);border-bottom:1px solid var(--line);
+  display:flex;gap:12px;align-items:center;padding:10px max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px))}
 header .logo{font-weight:700;font-size:18px;white-space:nowrap;cursor:pointer;text-decoration:none;color:var(--ink)}
 header .search{flex:1;min-width:0}
 header input{width:100%;padding:10px 14px;border:1px solid var(--line);border-radius:999px;background:var(--bg)}
-main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+main{max-width:1100px;margin:0 auto;padding-block:20px 60px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 h1{font-size:22px;margin:0 0 16px}
 h2{font-size:17px;margin:24px 0 10px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
@@ -87,6 +93,11 @@ table.edit input,table.edit select{width:100%;padding:6px;border:1px solid var(-
 .cmpcol b{font-size:16px}
 .cmpprice{font-size:20px;font-weight:700;color:var(--accent);margin:4px 0}
 table.edit textarea{width:100%;min-width:240px;min-height:90px;padding:6px;border:1px solid var(--line);border-radius:6px;background:var(--bg)}
+[hidden]{display:none!important}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:20;padding:16px}
+.modal .box{background:var(--card);border-radius:var(--radius);padding:20px;max-width:420px;width:100%;white-space:pre-wrap}
+.modal .row{justify-content:flex-end;margin-top:16px}
+textarea#bk{width:100%;min-height:120px;font:12px/1.4 monospace;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
 kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;font-size:12px}
 </style>
 </head>
@@ -94,10 +105,11 @@ kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;paddi
 <header>
   <a class="logo" href="#/">🐾 전화응대 도우미</a>
   <div class="search"><input id="q" type="search" placeholder="검색 (예: 금식, 주차, ㅈㅅㅎ)  —  단축키 /" autocomplete="off"></div>
-  <a class="btn sm" href="#/settings">⚙️ 설정</a>
+  <a class="btn sm" href="#/config">⚙️ 설정</a>
 </header>
 <main id="view"></main>
 <div class="toast" id="toast"></div>
+<div class="modal" id="modal" hidden><div class="box"><div id="mMsg"></div><div class="row"><button class="btn" id="mNo">취소</button><button class="btn pri" id="mYes">확인</button></div></div></div>
 
 <script>
 'use strict';
@@ -200,11 +212,19 @@ function load(){
 let saveTimer;
 function save(){
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(()=>{ try{ localStorage.setItem(KEY, JSON.stringify(data)); }catch(e){ alert('저장 실패: '+e.message); } }, 150);
+  saveTimer = setTimeout(()=>{ try{ localStorage.setItem(KEY, JSON.stringify(data)); }catch(e){ tell('저장 실패: '+e.message); } }, 150);
 }
 let data = load(); save();
 
 function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),1600); }
+function ask(msg, okOnly=false){
+  return new Promise(res=>{
+    const m=$('#modal'); $('#mMsg').textContent=msg; $('#mNo').hidden=okOnly; m.hidden=false; $('#mYes').focus();
+    const done=v=>{ m.hidden=true; $('#mYes').onclick=$('#mNo').onclick=null; res(v); };
+    $('#mYes').onclick=()=>done(true); $('#mNo').onclick=()=>done(false);
+  });
+}
+const tell = msg => ask(msg, true);
 async function copyText(text){
   try { await navigator.clipboard.writeText(text); }
   catch { const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
@@ -278,9 +298,9 @@ function route(){
   window.scrollTo(0,0);
   if(a==='svc' && b) return renderService(b);
   if(a==='search') return renderSearch(decodeURIComponent(b||''));
-  if(a==='settings' && b==='svc' && c) return renderEditService(c);
-  if(a==='settings' && b==='note' && c) return renderEditNote(c);
-  if(a==='settings') return renderSettings();
+  if(a==='config' && b==='svc' && c) return renderEditService(c);
+  if(a==='config' && b==='note' && c) return renderEditNote(c);
+  if(a==='config') return renderSettings();
   renderHome();
 }
 window.addEventListener('hashchange', route);
@@ -289,7 +309,7 @@ function noteCard(n, q=''){
   return `<div class="card note"><h3>${q?highlight(n.title,q):esc(n.title)}</h3>
     <div style="margin-bottom:6px">${n.tags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>
     <p>${q?highlight(n.content,q):esc(n.content)}</p>
-    <div class="row" style="margin-top:10px"><button class="btn sm" data-copy="${esc(n.id)}">복사</button><a class="btn sm" href="#/settings/note/${n.id}">수정</a></div></div>`;
+    <div class="row" style="margin-top:10px"><button class="btn sm" data-copy="${esc(n.id)}">복사</button><a class="btn sm" href="#/config/note/${n.id}">수정</a></div></div>`;
 }
 view.addEventListener('click', e=>{
   const c = e.target.closest('[data-copy]');
@@ -368,7 +388,7 @@ function renderService(id){
         r.lines.length ? `<div class="total">${won(r.total)}</div>
           <table class="lines">${r.lines.map(l=>`<tr><td>${esc(l.label)}<span class="cond">${esc(l.cond)}</span></td><td>${won(l.price)}</td></tr>`).join('')}</table>
           <div class="row" style="margin-top:12px"><button class="btn sm" id="copySum">내역 복사</button></div>`
-        : `<div class="hint">이 조건에 맞는 가격이 없습니다. <a href="#/settings/svc/${svc.id}">설정에서 추가</a></div>`}
+        : `<div class="hint">이 조건에 맞는 가격이 없습니다. <a href="#/config/svc/${svc.id}">설정에서 추가</a></div>`}
       ${svc.notes?`<div class="memo">📝 ${esc(svc.notes)}</div>`:''}`;
     const cs = $('#copySum'); if(cs) cs.onclick = () => copyText(summary());
   };
@@ -409,7 +429,7 @@ function updateSearch(q){
   box.innerHTML = `
     ${svcs.length?`<h2>가격 계산</h2><div class="grid">${svcs.map(s=>`<a class="tile" href="#/svc/${s.id}" style="text-decoration:none;color:inherit"><span class="ic">${esc(s.icon||'📋')}</span><b>${highlight(s.name,q)}</b><small>${esc(fieldsLabel(s))}</small></a>`).join('')}</div>`:''}
     <h2>안내문 ${notes.length}개</h2>
-    ${notes.length?`<div class="notes">${notes.map(n=>noteCard(n,q)).join('')}</div>`:`<p class="muted">검색 결과가 없습니다. <a href="#/settings/note/new">새 안내문 추가</a></p>`}`;
+    ${notes.length?`<div class="notes">${notes.map(n=>noteCard(n,q)).join('')}</div>`:`<p class="muted">검색 결과가 없습니다. <a href="#/config/note/new">새 안내문 추가</a></p>`}`;
 }
 $('#q').addEventListener('input', e=>{
   const q = e.target.value;
@@ -422,6 +442,7 @@ $('#q').addEventListener('keydown', e=>{
 document.addEventListener('keydown', e=>{
   const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
   if(e.key==='/' && !typing){ e.preventDefault(); $('#q').focus(); }
+  if(e.key==='Escape' && !$('#modal').hidden){ $('#mNo').click(); return; }
   if(e.key==='Escape'){ document.activeElement.blur(); location.hash='#/'; }
 });
 
@@ -434,7 +455,7 @@ function renderSettings(){
     <div class="card">${data.services.map((s,i)=>`
       <div class="row" style="justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line)">
         <span>${esc(s.icon)} <b>${esc(s.name)}</b> <span class="muted">· 가격 ${s.rules.length}줄 · 추가항목 ${s.addons.length}개</span></span>
-        <span class="row"><button class="btn sm" data-move="${i}" data-d="-1">▲</button><button class="btn sm" data-move="${i}" data-d="1">▼</button><a class="btn sm" href="#/settings/svc/${s.id}">수정</a></span>
+        <span class="row"><button class="btn sm" data-move="${i}" data-d="-1">▲</button><button class="btn sm" data-move="${i}" data-d="1">▼</button><a class="btn sm" href="#/config/svc/${s.id}">수정</a></span>
       </div>`).join('')}
       <div style="margin-top:10px"><button class="btn pri sm" id="addSvc">+ 항목 추가 (예: 예방접종, 미용)</button></div>
     </div>
@@ -442,9 +463,9 @@ function renderSettings(){
     <div class="card">${data.notes.map(n=>`
       <div class="row" style="justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line)">
         <span>${n.pinned?'📌 ':''}<b>${esc(n.title)}</b> ${n.tags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</span>
-        <a class="btn sm" href="#/settings/note/${n.id}">수정</a>
+        <a class="btn sm" href="#/config/note/${n.id}">수정</a>
       </div>`).join('')}
-      <div style="margin-top:10px"><a class="btn pri sm" href="#/settings/note/new">+ 안내문 추가</a></div>
+      <div style="margin-top:10px"><a class="btn pri sm" href="#/config/note/new">+ 안내문 추가</a></div>
     </div>
     <h2>백업 / 다른 컴퓨터로 옮기기</h2>
     <div class="card">
@@ -454,6 +475,9 @@ function renderSettings(){
         <label class="btn">📂 백업 파일 불러오기<input type="file" id="import" accept=".json,application/json" hidden></label>
         <button class="btn danger" id="resetAll">처음 예시 데이터로 되돌리기</button>
       </div>
+      <p class="muted" style="margin-bottom:6px">파일 받기가 안 될 때: 아래 백업 글자를 복사해 메모장 등에 보관하고, 옮길 곳에서 붙여넣은 뒤 [붙여넣은 내용 불러오기]를 누르세요.</p>
+      <textarea id="bk" spellcheck="false"></textarea>
+      <div class="row" style="margin-top:8px"><button class="btn" id="bkCopy">백업 글자 복사</button><button class="btn" id="bkLoad">붙여넣은 내용 불러오기</button></div>
     </div>`;
   view.querySelectorAll('[data-move]').forEach(b=>b.onclick=()=>{
     const i=+b.dataset.move, j=i+(+b.dataset.d); if(j<0||j>=data.services.length) return;
@@ -461,29 +485,32 @@ function renderSettings(){
   });
   $('#addSvc').onclick = () => {
     const s = {id:uid(), name:'새 항목', icon:'📋', fields:{species:true, sex:false, age:false, weight:true}, options:[], rules:[R({label:'기본 가격', price:0})], addons:[], notes:''};
-    data.services.push(s); save(); location.hash = '#/settings/svc/'+s.id;
+    data.services.push(s); save(); location.hash = '#/config/svc/'+s.id;
   };
   $('#export').onclick = () => {
     const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
     a.download = `전화응대_백업_${new Date().toISOString().slice(0,10)}.json`; a.click(); URL.revokeObjectURL(a.href);
   };
-  $('#import').onchange = async e => {
-    const file = e.target.files[0]; if(!file) return;
-    try { const d = normalize(JSON.parse(await file.text()));
-      if(!confirm(`가격 항목 ${d.services.length}개, 안내문 ${d.notes.length}개를 불러옵니다.\n지금 데이터는 덮어씌워집니다. 계속할까요?`)) return;
+  $('#bk').value = JSON.stringify(data);
+  $('#bkCopy').onclick = () => copyText(JSON.stringify(data));
+  const importText = async text => {
+    try { const d = normalize(JSON.parse(text));
+      if(!await ask(`가격 항목 ${d.services.length}개, 안내문 ${d.notes.length}개를 불러옵니다.\n지금 데이터는 덮어씌워집니다. 계속할까요?`)) return;
       data = d; save(); toast('불러왔습니다'); renderSettings();
-    } catch(err){ alert('불러오기 실패: 올바른 백업 파일이 아닙니다.'); }
+    } catch(err){ tell('불러오기 실패: 올바른 백업 파일이 아닙니다.'); }
   };
-  $('#resetAll').onclick = () => { if(confirm('모든 데이터를 지우고 예시 데이터로 되돌립니다. 계속할까요?')){ data = defaults(); save(); renderSettings(); toast('초기화했습니다'); } };
+  $('#bkLoad').onclick = () => importText($('#bk').value);
+  $('#import').onchange = async e => { const file = e.target.files[0]; if(file) importText(await file.text()); e.target.value=''; };
+  $('#resetAll').onclick = async () => { if(await ask('모든 데이터를 지우고 예시 데이터로 되돌립니다. 계속할까요?')){ data = defaults(); save(); renderSettings(); toast('초기화했습니다'); } };
 }
 
 function renderEditService(id){
-  const s = data.services.find(x=>x.id===id); if(!s){ location.hash='#/settings'; return; }
+  const s = data.services.find(x=>x.id===id); if(!s){ location.hash='#/config'; return; }
   const sel = (key, val, opts) => `<select data-k="${key}">${opts.map(([v,l])=>`<option value="${esc(v)}" ${v===(val||'')?'selected':''}>${esc(l)}</option>`).join('')}</select>`;
   const nv = v => v==null ? '' : v;
   view.innerHTML = `
-    <div class="back row"><a class="btn sm" href="#/settings">← 설정</a><a class="btn sm" href="#/svc/${s.id}">계산 화면 보기</a></div>
+    <div class="back row"><a class="btn sm" href="#/config">← 설정</a><a class="btn sm" href="#/svc/${s.id}">계산 화면 보기</a></div>
     <h1>${esc(s.icon)} ${esc(s.name)} 수정</h1>
     <p class="muted">수정하면 바로 저장됩니다.</p>
     <div class="card form">
@@ -561,10 +588,10 @@ function renderEditService(id){
       save();
     };
     t.addEventListener('input', handler); t.addEventListener('change', handler);
-    t.addEventListener('click', e=>{
+    t.addEventListener('click', async e=>{
       const tr = e.target.closest('tr[data-id]'); if(!tr) return;
       const i = list.findIndex(x=>x.id===tr.dataset.id);
-      if(e.target.closest('[data-del]')){ if(confirm('이 줄을 삭제할까요?')){ list.splice(i,1); save(); rerender(); } }
+      if(e.target.closest('[data-del]')){ if(await ask('이 줄을 삭제할까요?')){ list.splice(i,1); save(); rerender(); } }
       if(e.target.closest('[data-dup]')){ list.splice(i+1,0,{...list[i], id:uid()}); save(); rerender(); }
     });
   };
@@ -575,7 +602,7 @@ function renderEditService(id){
   $('#addOpt').onclick = () => { s.options.push(O('새 종류', '', '')); save(); re(); };
   $('#addRule').onclick = () => { s.rules.push(R({label:s.name})); save(); re(); };
   $('#addAddon').onclick = () => { s.addons.push(A('새 추가 항목', 0)); save(); re(); };
-  $('#delSvc').onclick = () => { if(confirm(`'${s.name}' 항목을 삭제할까요?`)){ data.services = data.services.filter(x=>x!==s); save(); location.hash='#/settings'; } };
+  $('#delSvc').onclick = async () => { if(await ask(`'${s.name}' 항목을 삭제할까요?`)){ data.services = data.services.filter(x=>x!==s); save(); location.hash='#/config'; } };
 }
 
 function renderEditNote(id){
@@ -583,7 +610,7 @@ function renderEditNote(id){
   const isNew = !n;
   if(isNew) n = {id:uid(), title:'', tags:[], pinned:false, content:''};
   view.innerHTML = `
-    <div class="back"><a class="btn sm" href="#/settings">← 설정</a></div>
+    <div class="back"><a class="btn sm" href="#/config">← 설정</a></div>
     <h1>${isNew?'안내문 추가':'안내문 수정'}</h1>
     <div class="card form">
       <div class="field"><label>제목</label><input type="text" id="nTitle" value="${esc(n.title)}" placeholder="예: 진료 시간"></div>
@@ -597,12 +624,12 @@ function renderEditNote(id){
     </div>`;
   $('#nTitle').focus();
   $('#nSave').onclick = () => {
-    const title = $('#nTitle').value.trim(); if(!title){ alert('제목을 입력하세요'); return; }
+    const title = $('#nTitle').value.trim(); if(!title){ tell('제목을 입력하세요'); return; }
     Object.assign(n, {title, tags:$('#nTags').value.split(',').map(x=>x.trim()).filter(Boolean), content:$('#nContent').value, pinned:$('#nPin').checked});
     if(isNew) data.notes.push(n);
-    save(); toast('저장했습니다'); location.hash = '#/settings';
+    save(); toast('저장했습니다'); location.hash = '#/config';
   };
-  if(!isNew) $('#nDel').onclick = () => { if(confirm('삭제할까요?')){ data.notes = data.notes.filter(x=>x!==n); save(); location.hash='#/settings'; } };
+  if(!isNew) $('#nDel').onclick = async () => { if(await ask('삭제할까요?')){ data.notes = data.notes.filter(x=>x!==n); save(); location.hash='#/config'; } };
 }
 
 route();
