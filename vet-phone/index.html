@@ -76,6 +76,17 @@ table.edit input,table.edit select{width:100%;padding:6px;border:1px solid var(-
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.show{opacity:1}
 .back{margin-bottom:12px}
+.items{margin-top:10px;background:var(--accent-soft);border-radius:10px;padding:10px 14px}
+.items ul,.cmpcol ul{margin:6px 0 0;padding-left:20px}
+.items li,.cmpcol li{margin:2px 0}
+.compare summary{cursor:pointer}
+.cmpgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-top:12px}
+.cmpcol{border:1px solid var(--line);border-radius:10px;padding:12px;cursor:pointer;font-size:14px}
+.cmpcol:hover{border-color:var(--accent)}
+.cmpcol.on{border:2px solid var(--accent);background:var(--accent-soft)}
+.cmpcol b{font-size:16px}
+.cmpprice{font-size:20px;font-weight:700;color:var(--accent);margin:4px 0}
+table.edit textarea{width:100%;min-width:240px;min-height:90px;padding:6px;border:1px solid var(--line);border-radius:6px;background:var(--bg)}
 kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;font-size:12px}
 </style>
 </head>
@@ -101,25 +112,35 @@ const SEX = {M:'수컷', F:'암컷'};
 /* ---------- 기본 데이터 (예시 가격! 설정에서 꼭 수정하세요) ---------- */
 function R(o){ return Object.assign({id:uid(), label:'', option:'', species:'', sex:'', ageMin:null, ageMax:null, wMin:null, wMax:null, price:0}, o); }
 function A(label, price, unit=false){ return {id:uid(), label, price, unit}; }
+function O(name, species, items){ return {id:uid(), name, species, items}; }
+function checkupService(){
+  return { id:uid(), name:'건강검진', icon:'🩺', fields:{species:true, sex:false, age:true, weight:true},
+    options:[
+      O('베이직', '', '신체검사 (청진·촉진·체중)\n혈구검사 (CBC)\n혈청화학검사 (기본 8항목)\n소변검사'),
+      O('스탠다드', '', '베이직 항목 전체\n혈청화학검사 (확장 15항목)\n전해질 검사\n흉부·복부 방사선'),
+      O('프리미엄(강아지)', 'dog', '스탠다드 항목 전체\n복부 초음파\n심장 초음파\n심장사상충 검사\n갑상선 호르몬 (T4)\n혈압 측정\n안과 검사 (안압·눈물량)'),
+      O('프리미엄(고양이)', 'cat', '스탠다드 항목 전체\n복부 초음파\n심장 초음파 · proBNP\nSDMA (신장 조기진단)\n갑상선 호르몬 (T4)\n혈압 측정\n전염병 키트 (FIV/FeLV)'),
+    ],
+    rules:[
+      R({label:'베이직 건강검진', option:'베이직', species:'dog', wMax:10, price:100000}),
+      R({label:'베이직 건강검진', option:'베이직', species:'dog', wMin:10, price:120000}),
+      R({label:'베이직 건강검진', option:'베이직', species:'cat', price:100000}),
+      R({label:'노령 추가 (흉부 방사선)', option:'베이직', ageMin:7, price:50000}),
+      R({label:'스탠다드 건강검진', option:'스탠다드', species:'dog', wMax:10, price:200000}),
+      R({label:'스탠다드 건강검진', option:'스탠다드', species:'dog', wMin:10, price:230000}),
+      R({label:'스탠다드 건강검진', option:'스탠다드', species:'cat', price:200000}),
+      R({label:'프리미엄 건강검진 (강아지)', option:'프리미엄(강아지)', species:'dog', wMax:10, price:400000}),
+      R({label:'프리미엄 건강검진 (강아지)', option:'프리미엄(강아지)', species:'dog', wMin:10, price:450000}),
+      R({label:'프리미엄 건강검진 (고양이)', option:'프리미엄(고양이)', species:'cat', price:380000}),
+    ],
+    addons:[A('심장 초음파', 80000), A('호르몬 검사', 60000), A('안과 검사', 30000)],
+    notes:'검사 전 8시간 금식 (물은 가능).\n소요 시간 약 2~3시간, 결과 상담 포함.' };
+}
 function defaults(){
   return {
-    version:1,
+    version:2,
     services:[
-      { id:uid(), name:'건강검진', icon:'🩺', fields:{species:true, sex:false, age:true, weight:true},
-        options:['기본','정밀'],
-        rules:[
-          R({label:'기본 건강검진', option:'기본', species:'dog', wMax:5, price:150000}),
-          R({label:'기본 건강검진', option:'기본', species:'dog', wMin:5, wMax:10, price:170000}),
-          R({label:'기본 건강검진', option:'기본', species:'dog', wMin:10, wMax:20, price:190000}),
-          R({label:'기본 건강검진', option:'기본', species:'dog', wMin:20, price:220000}),
-          R({label:'기본 건강검진', option:'기본', species:'cat', price:160000}),
-          R({label:'정밀 건강검진', option:'정밀', species:'dog', wMax:10, price:280000}),
-          R({label:'정밀 건강검진', option:'정밀', species:'dog', wMin:10, price:330000}),
-          R({label:'정밀 건강검진', option:'정밀', species:'cat', price:290000}),
-          R({label:'노령 추가검사 (흉부 방사선)', ageMin:7, price:50000}),
-        ],
-        addons:[A('심장 초음파', 80000), A('호르몬 검사', 60000), A('안과 검사', 30000)],
-        notes:'검사 전 8시간 금식 (물은 가능).\n소요 시간 약 2~3시간, 결과 상담 포함.' },
+      checkupService(),
       { id:uid(), name:'스케일링', icon:'🦷', fields:{species:true, sex:false, age:true, weight:true},
         options:[],
         rules:[
@@ -161,8 +182,15 @@ function defaults(){
 function normalize(d){
   if(!d || !Array.isArray(d.services) || !Array.isArray(d.notes)) throw new Error('형식 오류');
   d.services.forEach(s=>{ s.id ||= uid(); s.fields ||= {}; s.options ||= []; s.rules ||= []; s.addons ||= []; s.notes ||= '';
+    s.options = s.options.map(o => typeof o==='string' ? O(o,'','') : {id:o.id||uid(), name:o.name||'', species:o.species||'', items:o.items||''});
     s.rules = s.rules.map(r=>R(r)); s.addons.forEach(a=>{a.id ||= uid();}); });
   d.notes.forEach(n=>{ n.id ||= uid(); n.tags ||= []; });
+  // v1 → v2: 손대지 않은 예전 건강검진(기본/정밀)은 새 패키지로 교체
+  if(!(d.version >= 2)){
+    const i = d.services.findIndex(s=>s.name==='건강검진' && s.options.map(o=>o.name).join()==='기본,정밀');
+    if(i>=0) d.services[i] = Object.assign(checkupService(), {id:d.services[i].id});
+    d.version = 2;
+  }
   return d;
 }
 function load(){
@@ -174,7 +202,7 @@ function save(){
   clearTimeout(saveTimer);
   saveTimer = setTimeout(()=>{ try{ localStorage.setItem(KEY, JSON.stringify(data)); }catch(e){ alert('저장 실패: '+e.message); } }, 150);
 }
-let data = load();
+let data = load(); save();
 
 function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),1600); }
 async function copyText(text){
@@ -289,17 +317,21 @@ function fieldsLabel(s){
 function renderService(id){
   const svc = data.services.find(s=>s.id===id);
   if(!svc){ location.hash='#/'; return; }
-  const st = calcState[id] ||= {species:'dog', sex:'', age:null, weight:null, option:svc.options[0]||'', addons:{}};
-  if(svc.options.length && !svc.options.includes(st.option)) st.option = svc.options[0];
+  const st = calcState[id] ||= {species:'dog', sex:'', age:null, weight:null, option:'', addons:{}};
   const f = svc.fields;
+  const visibleOpts = svc.options.filter(o => !o.species || !f.species || o.species===st.species);
+  if(visibleOpts.length && !visibleOpts.some(o=>o.name===st.option)) st.option = visibleOpts[0].name;
+  const curOpt = svc.options.find(o=>o.name===st.option);
+  const itemList = o => (o.items||'').split('\n').map(x=>x.trim()).filter(Boolean);
   const seg = (name, items, cur) => `<div class="seg" data-seg="${name}">${items.map(([v,l])=>`<button type="button" data-v="${esc(v)}" class="${v===cur?'on':''}">${esc(l)}</button>`).join('')}</div>`;
   view.innerHTML = `
     <div class="back"><a class="btn sm" href="#/">← 처음으로</a></div>
     <h1>${esc(svc.icon||'')} ${esc(svc.name)}</h1>
     <div class="calc">
       <div class="card">
-        ${svc.options.length?`<div class="field"><label>종류</label>${seg('option', svc.options.map(o=>[o,o]), st.option)}</div>`:''}
         ${f.species?`<div class="field"><label>종</label>${seg('species', [['dog','🐶 개'],['cat','🐱 고양이']], st.species)}</div>`:''}
+        ${visibleOpts.length?`<div class="field"><label>종류 (누르면 검사 항목이 보여요)</label>${seg('option', visibleOpts.map(o=>[o.name,o.name]), st.option)}
+          ${curOpt && itemList(curOpt).length ? `<div class="items"><b>🔬 ${esc(curOpt.name)} 검사 항목</b><ul>${itemList(curOpt).map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}</div>`:''}
         ${f.sex?`<div class="field"><label>성별</label>${seg('sex', [['M','수컷'],['F','암컷']], st.sex)}</div>`:''}
         ${f.age?`<div class="field"><label>나이</label><div class="num"><input id="age" type="number" min="0" step="0.5" inputmode="decimal" value="${st.age??''}"> 세</div></div>`:''}
         ${f.weight?`<div class="field"><label>몸무게</label><div class="num"><input id="weight" type="number" min="0" step="0.1" inputmode="decimal" value="${st.weight??''}"> kg</div></div>`:''}
@@ -310,13 +342,26 @@ function renderService(id){
         <button class="btn sm" id="reset">입력 초기화</button>
       </div>
       <div class="card result" id="result"></div>
-    </div>`;
+    </div>
+    ${visibleOpts.length>1?`<details class="card compare" style="margin-top:16px"><summary><b>📊 ${esc(svc.name)} 종류 한눈에 비교 (가격 · 검사 항목)</b></summary><div id="compare"></div></details>`:''}`;
   const firstInput = $('#weight') || $('#age'); if(firstInput && !st.weight && !st.age) firstInput.focus();
   const update = () => {
     const r = calculate(svc, st);
     const el = $('#result');
     const summary = () => [`[${svc.name}] ${[st.option, SPECIES[f.species&&st.species], SEX[f.sex&&st.sex], f.age&&st.age!=null?st.age+'세':'', f.weight&&st.weight!=null?st.weight+'kg':''].filter(Boolean).join(' / ')}`,
-      ...r.lines.map(l=>`- ${l.label}: ${won(l.price)}`), `합계: ${won(r.total)}`].join('\n');
+      ...r.lines.map(l=>`- ${l.label}: ${won(l.price)}`), `합계: ${won(r.total)}`,
+      ...(curOpt && itemList(curOpt).length ? [`포함 검사: ${itemList(curOpt).join(', ')}`] : [])].join('\n');
+    const cmp = $('#compare');
+    if(cmp){
+      cmp.innerHTML = `<div class="cmpgrid">${visibleOpts.map(o=>{
+        const rr = calculate(svc, {...st, option:o.name, addons:{}});
+        return `<div class="cmpcol ${o.name===st.option?'on':''}" data-pick="${esc(o.name)}">
+          <b>${esc(o.name)}</b>
+          <div class="cmpprice">${rr.missing.length ? '<span class="muted">정보 입력 필요</span>' : rr.lines.length ? won(rr.total) : '<span class="muted">가격 없음</span>'}</div>
+          <ul>${itemList(o).map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`;
+      }).join('')}</div><p class="muted" style="font-size:13px;margin:8px 0 0">추가 항목 제외 금액 · 칸을 누르면 그 종류로 선택됩니다</p>`;
+      cmp.querySelectorAll('[data-pick]').forEach(c=>c.onclick=()=>{ st.option=c.dataset.pick; st._cmpOpen=true; renderService(id); });
+    }
     el.innerHTML = `
       <div class="muted">예상 금액</div>
       ${r.missing.length ? `<div class="hint">입력해 주세요: <b>${r.missing.join(', ')}</b></div>` :
@@ -330,9 +375,11 @@ function renderService(id){
   view.querySelectorAll('[data-seg]').forEach(g=>g.addEventListener('click', e=>{
     const b = e.target.closest('button'); if(!b) return;
     st[g.dataset.seg] = b.dataset.v;
+    if(g.dataset.seg==='option' || g.dataset.seg==='species'){ st._cmpOpen = !!$('details.compare')?.open; return renderService(id); }
     g.querySelectorAll('button').forEach(x=>x.classList.toggle('on', x===b));
     update();
   }));
+  if(st._cmpOpen && $('details.compare')) $('details.compare').open = true;
   const num = v => v==='' ? null : Number(v);
   if($('#age')) $('#age').addEventListener('input', e=>{ st.age = num(e.target.value); update(); });
   if($('#weight')) $('#weight').addEventListener('input', e=>{ st.weight = num(e.target.value); update(); });
@@ -358,7 +405,7 @@ function updateSearch(q){
   q = q.trim().toLowerCase();
   const box = $('#searchResults'); if(!box) return;
   const notes = q ? data.notes.filter(n=>matchText([n.title,n.content,n.tags.join(' ')].join(' '), q)) : data.notes;
-  const svcs = q ? data.services.filter(s=>matchText([s.name,s.notes,...s.rules.map(r=>r.label),...s.addons.map(a=>a.label)].join(' '), q)) : [];
+  const svcs = q ? data.services.filter(s=>matchText([s.name,s.notes,...s.options.map(o=>o.name+' '+o.items),...s.rules.map(r=>r.label),...s.addons.map(a=>a.label)].join(' '), q)) : [];
   box.innerHTML = `
     ${svcs.length?`<h2>가격 계산</h2><div class="grid">${svcs.map(s=>`<a class="tile" href="#/svc/${s.id}" style="text-decoration:none;color:inherit"><span class="ic">${esc(s.icon||'📋')}</span><b>${highlight(s.name,q)}</b><small>${esc(fieldsLabel(s))}</small></a>`).join('')}</div>`:''}
     <h2>안내문 ${notes.length}개</h2>
@@ -447,8 +494,19 @@ function renderEditService(id){
       <div class="field" style="margin-top:12px"><label>전화 받을 때 물어볼 것</label>
         <div class="row">${[['species','종 (개/고양이)'],['sex','성별'],['age','나이'],['weight','몸무게']].map(([k,l])=>`<label><input type="checkbox" data-field="${k}" ${s.fields[k]?'checked':''}> ${l}</label>`).join('')}</div>
       </div>
-      <div class="field"><label>종류 선택지 (쉼표로 구분, 예: 기본, 정밀) — 없으면 비워두기</label><input type="text" id="sOpts" value="${esc(s.options.join(', '))}"></div>
     </div>
+
+    <h2>종류 (패키지)</h2>
+    <p class="muted" style="margin-top:-4px;font-size:14px">예: 베이직·스탠다드·프리미엄. 없으면 비워두세요. 검사 항목은 한 줄에 하나씩. "대상"을 정하면 그 종을 골랐을 때만 보입니다.</p>
+    <div class="card scroll"><table class="edit" id="opts">
+      <tr><th>이름</th><th>대상</th><th>검사 / 포함 항목</th><th></th></tr>
+      ${s.options.map(o=>`<tr data-id="${o.id}">
+        <td style="min-width:140px"><input data-k="name" value="${esc(o.name)}"></td>
+        <td>${sel('species', o.species, [['','전체'],['dog','개'],['cat','고양이']])}</td>
+        <td><textarea data-k="items">${esc(o.items)}</textarea></td>
+        <td><button class="btn sm danger" data-del>✕</button></td></tr>`).join('')}
+    </table>
+    <button class="btn sm pri" id="addOpt" style="margin-top:10px">+ 종류 추가</button></div>
 
     <h2>가격표</h2>
     <p class="muted" style="margin-top:-4px;font-size:14px">조건에 맞는 줄이 <b>모두 더해집니다</b>. 빈 칸 = 상관없음. 범위는 "이상 ~ 미만" (예: 5 ~ 10kg 은 5kg 이상 10kg 미만).</p>
@@ -456,7 +514,7 @@ function renderEditService(id){
       <tr><th>내용</th>${s.options.length?'<th>종류</th>':''}<th>종</th><th>성별</th><th>kg 이상</th><th>kg 미만</th><th>나이 이상</th><th>나이 미만</th><th>가격(원)</th><th></th></tr>
       ${s.rules.map(r=>`<tr data-id="${r.id}">
         <td style="min-width:180px"><input data-k="label" value="${esc(r.label)}"></td>
-        ${s.options.length?`<td>${sel('option', r.option, [['','전체'],...s.options.map(o=>[o,o])])}</td>`:''}
+        ${s.options.length?`<td>${sel('option', r.option, [['','전체'],...s.options.map(o=>[o.name,o.name])])}</td>`:''}
         <td>${sel('species', r.species, [['','전체'],['dog','개'],['cat','고양이']])}</td>
         <td>${sel('sex', r.sex, [['','전체'],['M','수컷'],['F','암컷']])}</td>
         <td><input data-k="wMin" data-n type="number" step="0.1" value="${nv(r.wMin)}"></td>
@@ -486,13 +544,17 @@ function renderEditService(id){
   $('#sIcon').oninput = e => { s.icon = e.target.value; save(); };
   $('#sName').oninput = e => { s.name = e.target.value; save(); };
   $('#sNotes').oninput = e => { s.notes = e.target.value; save(); };
-  $('#sOpts').onchange = e => { s.options = e.target.value.split(',').map(x=>x.trim()).filter(Boolean); save(); renderEditService(id); };
   view.querySelectorAll('[data-field]').forEach(cb=>cb.onchange=()=>{ s.fields[cb.dataset.field]=cb.checked; save(); });
   const bindTable = (tableId, list, rerender) => {
     const t = $('#'+tableId);
     const handler = e => {
       const tr = e.target.closest('tr[data-id]'); const k = e.target.dataset.k; if(!tr || !k) return;
       const item = list.find(x=>x.id===tr.dataset.id); if(!item) return;
+      if(list===s.options && k==='name'){ // 이름 바꾸면 가격표 연결도 같이 바꿈
+        const nn = e.target.value.trim();
+        s.rules.forEach(r=>{ if(r.option===item.name) r.option = nn; });
+        item.name = nn; save(); if(e.type==='change') rerender(); return;
+      }
       if(e.target.type==='checkbox') item[k] = e.target.checked;
       else if('n' in e.target.dataset) item[k] = e.target.value==='' ? null : Number(e.target.value);
       else item[k] = e.target.value;
@@ -509,6 +571,8 @@ function renderEditService(id){
   const re = () => renderEditService(id);
   bindTable('rules', s.rules, re);
   bindTable('addons', s.addons, re);
+  bindTable('opts', s.options, re);
+  $('#addOpt').onclick = () => { s.options.push(O('새 종류', '', '')); save(); re(); };
   $('#addRule').onclick = () => { s.rules.push(R({label:s.name})); save(); re(); };
   $('#addAddon').onclick = () => { s.addons.push(A('새 추가 항목', 0)); save(); re(); };
   $('#delSvc').onclick = () => { if(confirm(`'${s.name}' 항목을 삭제할까요?`)){ data.services = data.services.filter(x=>x!==s); save(); location.hash='#/settings'; } };
