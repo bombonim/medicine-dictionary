@@ -182,36 +182,6 @@ function scalingService(){
     addons:[],
     notes:'* 치과방사선/발치 비용 별도 *\n25kg 이상은 가격표에 없음 → 상담' };
 }
-function vaccineService(){
-  const dog = [
-    ['1차', '종합 + 코로나', 55000], ['2차', '종합 + 코로나', 55000],
-    ['3차', '종합 + 켄넬', 55000],   ['4차', '종합 + 켄넬', 55000],
-    ['5차', '종합 + 신종플루', 70000], ['6차', '신종플루 + 광견병', 65000],
-  ];
-  const VP = {'종합':30000, '코로나':25000, '켄넬':25000, '광견병':25000, '신종플루':40000};
-  const unit = '종합 30,000원\n코로나 25,000원\n켄넬 25,000원\n광견병 25,000원\n신종플루 40,000원';
-  return { id:uid(), name:'예방접종', icon:'💉', fields:{species:true, sex:false, age:false, weight:false},
-    options:[
-      O('6차 전체', 'dog', dog.map(([n,v,p])=>`${n}: ${v} (${won(p)})`).join('\n')+'\n※ 2주 간격', {tip:'강아지 기초접종 총 6차, 2주 간격'}),
-      ...dog.map(([n,v,p],i)=>O(n, 'dog', v.split(' + ').map(x=>`${x} ${won(VP[x])}`).join('\n') + (i<5 ? '\n→ 2주 후 '+(i+2)+'차' : '\n→ 기초접종 끝'), {tip:'강아지 '+n+' 접종'})),
-      O('단품 각 1회', 'dog', unit, {tip:'백신 한 가지씩 모두 1회 맞을 때 합계'}),
-      O('3차 전체 (종합)', 'cat', '1차: 종합 (45,000원)\n2차: 종합 (45,000원)\n3차: 종합 (45,000원)\n※ 3주 간격', {tip:'고양이 기초접종 총 3차, 3주 간격'}),
-      O('3차 전체 + 광견병', 'cat', '종합 3차 (135,000원)\n광견병 (25,000원)\n※ 고양이 광견병은 선택사항', {tip:'고양이 종합 3차 + 광견병'}),
-      O('종합 1회', 'cat', '종합 45,000원', {tip:'고양이 종합백신 1회'}),
-      O('광견병 1회', 'cat', '광견병 25,000원\n※ 고양이 광견병은 선택사항', {tip:'고양이 광견병 1회 (선택)'}),
-    ],
-    rules:[
-      R({label:'강아지 기초접종 6차 전체', option:'6차 전체', species:'dog', price:355000}),
-      ...dog.map(([n,v,p])=>R({label:`강아지 ${n} (${v})`, option:n, species:'dog', price:p})),
-      R({label:'강아지 백신 각 1회 (종합·코로나·켄넬·광견병·신종플루)', option:'단품 각 1회', species:'dog', price:145000}),
-      R({label:'고양이 종합 3차', option:'3차 전체 (종합)', species:'cat', price:135000}),
-      R({label:'고양이 종합 3차 + 광견병', option:'3차 전체 + 광견병', species:'cat', price:160000}),
-      R({label:'고양이 종합 1회', option:'종합 1회', species:'cat', price:45000}),
-      R({label:'고양이 광견병 1회', option:'광견병 1회', species:'cat', price:25000}),
-    ],
-    addons:[],
-    notes:'강아지: 총 6차, 2주 간격\n고양이: 총 3차, 3주 간격 (광견병은 선택)\n국가접종(광견병): 4월 중순, 10월 중순 진행' };
-}
 function N(title, tags, pinned, content){ return {id:uid(), title, tags, pinned, content}; }
 function clinicNotes(){
   return [
@@ -316,12 +286,11 @@ function clinicNotes(){
 }
 function defaults(){
   return {
-    version:6,
+    version:7,
     services:[
       checkupService(),
       scalingService(),
       neuterService(),
-      vaccineService(),
     ],
     notes: clinicNotes(),
   };
@@ -367,12 +336,16 @@ function normalize(d){
     fresh.slice(2).forEach(nn => { if(byTitle(nn.title)<0) d.notes.push(nn); });
     d.version = 5;
   }
-  // v5 → v6: 예방접종 계산 화면 + 안내문 추가
+  // v5 → v6: 예방접종 안내문 추가
   if(d.version < 6){
-    if(!d.services.some(s=>s.name==='예방접종')) d.services.push(vaccineService());
     const vn = clinicNotes().find(n=>n.title==='예방접종 안내');
     if(!d.notes.some(n=>n.title===vn.title)) d.notes.push(vn);
     d.version = 6;
+  }
+  // v6 → v7: 예방접종 계산 화면 제거 (안내문만 사용)
+  if(d.version < 7){
+    d.services = d.services.filter(s=>s.name!=='예방접종');
+    d.version = 7;
   }
   return d;
 }
