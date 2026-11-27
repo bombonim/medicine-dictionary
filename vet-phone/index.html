@@ -182,6 +182,36 @@ function scalingService(){
     addons:[],
     notes:'* 치과방사선/발치 비용 별도 *\n25kg 이상은 가격표에 없음 → 상담' };
 }
+function vaccineService(){
+  const dog = [
+    ['1차', '종합 + 코로나', 55000], ['2차', '종합 + 코로나', 55000],
+    ['3차', '종합 + 켄넬', 55000],   ['4차', '종합 + 켄넬', 55000],
+    ['5차', '종합 + 신종플루', 70000], ['6차', '신종플루 + 광견병', 65000],
+  ];
+  const VP = {'종합':30000, '코로나':25000, '켄넬':25000, '광견병':25000, '신종플루':40000};
+  const unit = '종합 30,000원\n코로나 25,000원\n켄넬 25,000원\n광견병 25,000원\n신종플루 40,000원';
+  return { id:uid(), name:'예방접종', icon:'💉', fields:{species:true, sex:false, age:false, weight:false},
+    options:[
+      O('6차 전체', 'dog', dog.map(([n,v,p])=>`${n}: ${v} (${won(p)})`).join('\n')+'\n※ 2주 간격', {tip:'강아지 기초접종 총 6차, 2주 간격'}),
+      ...dog.map(([n,v,p],i)=>O(n, 'dog', v.split(' + ').map(x=>`${x} ${won(VP[x])}`).join('\n') + (i<5 ? '\n→ 2주 후 '+(i+2)+'차' : '\n→ 기초접종 끝'), {tip:'강아지 '+n+' 접종'})),
+      O('단품 각 1회', 'dog', unit, {tip:'백신 한 가지씩 모두 1회 맞을 때 합계'}),
+      O('3차 전체 (종합)', 'cat', '1차: 종합 (45,000원)\n2차: 종합 (45,000원)\n3차: 종합 (45,000원)\n※ 3주 간격', {tip:'고양이 기초접종 총 3차, 3주 간격'}),
+      O('3차 전체 + 광견병', 'cat', '종합 3차 (135,000원)\n광견병 (25,000원)\n※ 고양이 광견병은 선택사항', {tip:'고양이 종합 3차 + 광견병'}),
+      O('종합 1회', 'cat', '종합 45,000원', {tip:'고양이 종합백신 1회'}),
+      O('광견병 1회', 'cat', '광견병 25,000원\n※ 고양이 광견병은 선택사항', {tip:'고양이 광견병 1회 (선택)'}),
+    ],
+    rules:[
+      R({label:'강아지 기초접종 6차 전체', option:'6차 전체', species:'dog', price:355000}),
+      ...dog.map(([n,v,p])=>R({label:`강아지 ${n} (${v})`, option:n, species:'dog', price:p})),
+      R({label:'강아지 백신 각 1회 (종합·코로나·켄넬·광견병·신종플루)', option:'단품 각 1회', species:'dog', price:145000}),
+      R({label:'고양이 종합 3차', option:'3차 전체 (종합)', species:'cat', price:135000}),
+      R({label:'고양이 종합 3차 + 광견병', option:'3차 전체 + 광견병', species:'cat', price:160000}),
+      R({label:'고양이 종합 1회', option:'종합 1회', species:'cat', price:45000}),
+      R({label:'고양이 광견병 1회', option:'광견병 1회', species:'cat', price:25000}),
+    ],
+    addons:[],
+    notes:'강아지: 총 6차, 2주 간격\n고양이: 총 3차, 3주 간격 (광견병은 선택)\n국가접종(광견병): 4월 중순, 10월 중순 진행' };
+}
 function N(title, tags, pinned, content){ return {id:uid(), title, tags, pinned, content}; }
 function clinicNotes(){
   return [
@@ -250,6 +280,27 @@ function clinicNotes(){
 
 ■ 스케일링과 함께 발치 진행 권유
  - 따로 하면 비용이 비슷하게 들어서 같이 하도록 권유`),
+    N('예방접종 안내', ['접종','예방접종','백신','광견병','종합','코로나','켄넬','신종플루'], false,
+`■ 강아지 (총 6차, 2주 간격)
+ 백신 가격: 종합 30,000 / 코로나 25,000 / 켄넬 25,000
+            광견병 25,000 / 신종플루 40,000
+ → 각 1회씩 모두 = 145,000원
+
+ 1차 종합 + 코로나      55,000원
+ 2차 종합 + 코로나      55,000원
+ 3차 종합 + 켄넬        55,000원
+ 4차 종합 + 켄넬        55,000원
+ 5차 종합 + 신종플루    70,000원
+ 6차 신종플루 + 광견병  65,000원
+ → 6차 전체 = 355,000원
+
+■ 국가접종 (광견병): 4월 중순, 10월 중순 진행
+
+■ 고양이 (총 3차, 3주 간격)
+ 백신 가격: 종합 45,000 / 광견병 25,000
+ 고양이 광견병은 선택사항
+ → 종합 3차 = 135,000원
+ → 종합 3차 + 광견병 = 160,000원`),
     N('건강검진 + 스케일링', ['건강검진','스케일링','노령'], false,
 `■ 나이에 맞는 건강검진 + 스케일링 같이 가능
 
@@ -265,11 +316,12 @@ function clinicNotes(){
 }
 function defaults(){
   return {
-    version:5,
+    version:6,
     services:[
       checkupService(),
       scalingService(),
       neuterService(),
+      vaccineService(),
     ],
     notes: clinicNotes(),
   };
@@ -314,6 +366,13 @@ function normalize(d){
     d.notes = d.notes.filter(n => n.title!=='주차 안내' && !(n.title==='예약 변경·취소' && n.content==='전날까지 전화로 변경/취소 부탁드립니다.'));
     fresh.slice(2).forEach(nn => { if(byTitle(nn.title)<0) d.notes.push(nn); });
     d.version = 5;
+  }
+  // v5 → v6: 예방접종 계산 화면 + 안내문 추가
+  if(d.version < 6){
+    if(!d.services.some(s=>s.name==='예방접종')) d.services.push(vaccineService());
+    const vn = clinicNotes().find(n=>n.title==='예방접종 안내');
+    if(!d.notes.some(n=>n.title===vn.title)) d.notes.push(vn);
+    d.version = 6;
   }
   return d;
 }
@@ -475,8 +534,8 @@ function renderService(id){
     <div class="calc">
       <div class="card">
         ${f.species?`<div class="field"><label>종</label>${seg('species', [['dog','🐶 개'],['cat','🐱 고양이']], st.species)}</div>`:''}
-        ${visibleOpts.length?`<div class="field"><label>종류 (누르면 검사 항목이 보여요)</label>${seg('option', visibleOpts.map(o=>[o.name,o.name]), st.option)}
-          ${curOpt && (itemList(curOpt).length || curOpt.tip) ? `<div class="items"><b>🔬 ${esc(curOpt.name)} 검사 항목</b>${curOpt.tip?`<div class="tip">${esc(curOpt.tip)}</div>`:''}<ul>${itemList(curOpt).map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}</div>`:''}
+        ${visibleOpts.length?`<div class="field"><label>종류 (누르면 자세한 내용이 보여요)</label>${seg('option', visibleOpts.map(o=>[o.name,o.name]), st.option)}
+          ${curOpt && (itemList(curOpt).length || curOpt.tip) ? `<div class="items"><b>${svc.name.includes('검진')?'🔬':'📋'} ${esc(curOpt.name)} ${svc.name.includes('검진')?'검사 항목':'포함 내용'}</b>${curOpt.tip?`<div class="tip">${esc(curOpt.tip)}</div>`:''}<ul>${itemList(curOpt).map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}</div>`:''}
         ${f.sex?`<div class="field"><label>성별</label>${seg('sex', [['M','수컷'],['F','암컷']], st.sex)}</div>`:''}
         ${f.age?`<div class="field"><label>나이</label><div class="num"><input id="age" type="number" min="0" step="0.5" inputmode="decimal" value="${st.age??''}"> 세</div></div>`:''}
         ${f.weight?`<div class="field"><label>몸무게</label><div class="num"><input id="weight" type="number" min="0" step="0.1" inputmode="decimal" value="${st.weight??''}"> kg</div></div>`:''}
@@ -488,7 +547,7 @@ function renderService(id){
       </div>
       <div class="card result" id="result"></div>
     </div>
-    ${visibleOpts.length>1?`<details class="card compare" style="margin-top:16px"><summary><b>📊 ${esc(svc.name)} 종류 한눈에 비교 (가격 · 검사 항목)</b></summary><div id="compare"></div></details>`:''}`;
+    ${visibleOpts.length>1?`<details class="card compare" style="margin-top:16px"><summary><b>📊 ${esc(svc.name)} 종류 한눈에 비교 (가격 · 포함 내용)</b></summary><div id="compare"></div></details>`:''}`;
   const firstInput = $('#weight') || $('#age'); if(firstInput && !st.weight && !st.age) firstInput.focus();
   const isRec = name => { const o = svc.options.find(x=>x.name===name);
     return !!o && st.age!=null && (o.recMin!=null || o.recMax!=null) && inRange(st.age, o.recMin, o.recMax)===true; };
