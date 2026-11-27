@@ -59,6 +59,8 @@ h2{font-size:17px;margin:24px 0 10px}
 .seg button{border:0;background:var(--card);padding:10px 18px;cursor:pointer;border-right:1px solid var(--line)}
 .seg button:last-child{border-right:0}
 .seg button.on{background:var(--accent);color:#fff}
+.seg button.rec::after,.cmpcol.rec>b::after{content:' ⭐추천';font-size:.8em}
+.tip{font-size:13px;color:var(--muted)}
 .num{display:flex;align-items:center;gap:8px}
 .num input{width:140px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-size:20px}
 .addon{display:flex;align-items:center;gap:8px;padding:6px 0}
@@ -124,29 +126,24 @@ const SEX = {M:'수컷', F:'암컷'};
 /* ---------- 기본 데이터 (예시 가격! 설정에서 꼭 수정하세요) ---------- */
 function R(o){ return Object.assign({id:uid(), label:'', option:'', species:'', sex:'', ageMin:null, ageMax:null, wMin:null, wMax:null, price:0, perKg:null}, o); }
 function A(label, price, unit=false){ return {id:uid(), label, price, unit}; }
-function O(name, species, items){ return {id:uid(), name, species, items}; }
+function O(name, species, items, extra={}){ return {id:uid(), name, species, items, tip:'', recMin:null, recMax:null, ...extra}; }
 function checkupService(){
-  return { id:uid(), name:'건강검진', icon:'🩺', fields:{species:true, sex:false, age:true, weight:true},
+  const base = '기본신체검사\nCBC\n전해질검사\n심장사상충\n복부초음파\n혈청화학검사 17종\nX-Ray (흉부 + 복부)';
+  return { id:uid(), name:'건강검진', icon:'🩺', fields:{species:true, sex:false, age:true, weight:false},
     options:[
-      O('베이직', '', '신체검사 (청진·촉진·체중)\n혈구검사 (CBC)\n혈청화학검사 (기본 8항목)\n소변검사'),
-      O('스탠다드', '', '베이직 항목 전체\n혈청화학검사 (확장 15항목)\n전해질 검사\n흉부·복부 방사선'),
-      O('프리미엄(강아지)', 'dog', '스탠다드 항목 전체\n복부 초음파\n심장 초음파\n심장사상충 검사\n갑상선 호르몬 (T4)\n혈압 측정\n안과 검사 (안압·눈물량)'),
-      O('프리미엄(고양이)', 'cat', '스탠다드 항목 전체\n복부 초음파\n심장 초음파 · proBNP\nSDMA (신장 조기진단)\n갑상선 호르몬 (T4)\n혈압 측정\n전염병 키트 (FIV/FeLV)'),
+      O('Basic', '', '기본신체검사\nCBC\n혈청화학검사 10종\nX-Ray (흉부 + 복부)\n심장사상충', {tip:'5살 이하 아이들에게 추천', recMax:6}),
+      O('Standard', '', base, {tip:'6~7살 아이들에게 추천', recMin:6, recMax:8}),
+      O('Premium(강아지)', 'dog', base+'\nSDMA\nT4\nTSH', {tip:'8살 이상 강아지에게 추천', recMin:8}),
+      O('Premium(고양이)', 'cat', base+'\nSDMA\nNT proBNP', {tip:'8살 이상 고양이에게 추천', recMin:8}),
     ],
     rules:[
-      R({label:'베이직 건강검진', option:'베이직', species:'dog', wMax:10, price:100000}),
-      R({label:'베이직 건강검진', option:'베이직', species:'dog', wMin:10, price:120000}),
-      R({label:'베이직 건강검진', option:'베이직', species:'cat', price:100000}),
-      R({label:'노령 추가 (흉부 방사선)', option:'베이직', ageMin:7, price:50000}),
-      R({label:'스탠다드 건강검진', option:'스탠다드', species:'dog', wMax:10, price:200000}),
-      R({label:'스탠다드 건강검진', option:'스탠다드', species:'dog', wMin:10, price:230000}),
-      R({label:'스탠다드 건강검진', option:'스탠다드', species:'cat', price:200000}),
-      R({label:'프리미엄 건강검진 (강아지)', option:'프리미엄(강아지)', species:'dog', wMax:10, price:400000}),
-      R({label:'프리미엄 건강검진 (강아지)', option:'프리미엄(강아지)', species:'dog', wMin:10, price:450000}),
-      R({label:'프리미엄 건강검진 (고양이)', option:'프리미엄(고양이)', species:'cat', price:380000}),
+      R({label:'건강검진 Basic', option:'Basic', price:180000}),
+      R({label:'건강검진 Standard', option:'Standard', price:300000}),
+      R({label:'건강검진 Premium (강아지)', option:'Premium(강아지)', price:400000}),
+      R({label:'건강검진 Premium (고양이)', option:'Premium(고양이)', price:400000}),
     ],
-    addons:[A('심장 초음파', 80000), A('호르몬 검사', 60000), A('안과 검사', 30000)],
-    notes:'검사 전 8시간 금식 (물은 가능).\n소요 시간 약 2~3시간, 결과 상담 포함.' };
+    addons:[],
+    notes:'병원 자체 장비 보유로 검사 결과 당일 수령 가능!\n* 상담 후 검사 및 비용 조절 가능' };
 }
 // 가격표(표 형태) → 가격 줄. table[몸무게칸][나이칸], null은 비움
 const AGE_4_8 = [[null,4],[4,8],[8,null]];
@@ -185,7 +182,7 @@ function scalingService(){
 }
 function defaults(){
   return {
-    version:3,
+    version:4,
     services:[
       checkupService(),
       scalingService(),
@@ -204,7 +201,7 @@ function defaults(){
 function normalize(d){
   if(!d || !Array.isArray(d.services) || !Array.isArray(d.notes)) throw new Error('형식 오류');
   d.services.forEach(s=>{ s.id ||= uid(); s.fields ||= {}; s.options ||= []; s.rules ||= []; s.addons ||= []; s.notes ||= '';
-    s.options = s.options.map(o => typeof o==='string' ? O(o,'','') : {id:o.id||uid(), name:o.name||'', species:o.species||'', items:o.items||''});
+    s.options = s.options.map(o => typeof o==='string' ? O(o,'','') : {id:o.id||uid(), name:o.name||'', species:o.species||'', items:o.items||'', tip:o.tip||'', recMin:o.recMin??null, recMax:o.recMax??null});
     s.rules = s.rules.map(r=>R(r)); s.addons.forEach(a=>{a.id ||= uid();}); });
   d.notes.forEach(n=>{ n.id ||= uid(); n.tags ||= []; });
   // v1 → v2: 손대지 않은 예전 건강검진(기본/정밀)은 새 패키지로 교체
@@ -221,6 +218,13 @@ function normalize(d){
       else d.services.push(make());
     });
     d.version = 3;
+  }
+  // v3 → v4: 병원 실제 건강검진 패키지로 교체
+  if(d.version < 4){
+    const i = d.services.findIndex(s=>s.name==='건강검진');
+    if(i>=0) d.services[i] = Object.assign(checkupService(), {id:d.services[i].id});
+    else d.services.unshift(checkupService());
+    d.version = 4;
   }
   return d;
 }
@@ -272,8 +276,9 @@ function calculate(svc, inp){
   const f = svc.fields;
   if(f.species && !inp.species) missing.push('종');
   if(f.sex && !inp.sex) missing.push('성별');
-  if(f.age && inp.age==null) missing.push('나이');
-  if(f.weight && inp.weight==null) missing.push('몸무게');
+  const uses = (a,b) => svc.rules.some(r => (!r.option || r.option===inp.option) && (r[a]!=null || r[b]!=null));
+  if(f.age && inp.age==null && uses('ageMin','ageMax')) missing.push('나이');
+  if(f.weight && inp.weight==null && uses('wMin','wMax')) missing.push('몸무게');
   const lines = [];
   for(const r of svc.rules){
     if(r.option && svc.options.length && r.option !== inp.option) continue;
@@ -375,7 +380,7 @@ function renderService(id){
       <div class="card">
         ${f.species?`<div class="field"><label>종</label>${seg('species', [['dog','🐶 개'],['cat','🐱 고양이']], st.species)}</div>`:''}
         ${visibleOpts.length?`<div class="field"><label>종류 (누르면 검사 항목이 보여요)</label>${seg('option', visibleOpts.map(o=>[o.name,o.name]), st.option)}
-          ${curOpt && itemList(curOpt).length ? `<div class="items"><b>🔬 ${esc(curOpt.name)} 검사 항목</b><ul>${itemList(curOpt).map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}</div>`:''}
+          ${curOpt && (itemList(curOpt).length || curOpt.tip) ? `<div class="items"><b>🔬 ${esc(curOpt.name)} 검사 항목</b>${curOpt.tip?`<div class="tip">${esc(curOpt.tip)}</div>`:''}<ul>${itemList(curOpt).map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}</div>`:''}
         ${f.sex?`<div class="field"><label>성별</label>${seg('sex', [['M','수컷'],['F','암컷']], st.sex)}</div>`:''}
         ${f.age?`<div class="field"><label>나이</label><div class="num"><input id="age" type="number" min="0" step="0.5" inputmode="decimal" value="${st.age??''}"> 세</div></div>`:''}
         ${f.weight?`<div class="field"><label>몸무게</label><div class="num"><input id="weight" type="number" min="0" step="0.1" inputmode="decimal" value="${st.weight??''}"> kg</div></div>`:''}
@@ -389,7 +394,10 @@ function renderService(id){
     </div>
     ${visibleOpts.length>1?`<details class="card compare" style="margin-top:16px"><summary><b>📊 ${esc(svc.name)} 종류 한눈에 비교 (가격 · 검사 항목)</b></summary><div id="compare"></div></details>`:''}`;
   const firstInput = $('#weight') || $('#age'); if(firstInput && !st.weight && !st.age) firstInput.focus();
+  const isRec = name => { const o = svc.options.find(x=>x.name===name);
+    return !!o && st.age!=null && (o.recMin!=null || o.recMax!=null) && inRange(st.age, o.recMin, o.recMax)===true; };
   const update = () => {
+    view.querySelectorAll('[data-seg=option] button').forEach(b=>b.classList.toggle('rec', isRec(b.dataset.v)));
     const r = calculate(svc, st);
     const el = $('#result');
     const summary = () => [`[${svc.name}] ${[st.option, SPECIES[f.species&&st.species], SEX[f.sex&&st.sex], f.age&&st.age!=null?st.age+'세':'', f.weight&&st.weight!=null?st.weight+'kg':''].filter(Boolean).join(' / ')}`,
@@ -399,8 +407,8 @@ function renderService(id){
     if(cmp){
       cmp.innerHTML = `<div class="cmpgrid">${visibleOpts.map(o=>{
         const rr = calculate(svc, {...st, option:o.name, addons:{}});
-        return `<div class="cmpcol ${o.name===st.option?'on':''}" data-pick="${esc(o.name)}">
-          <b>${esc(o.name)}</b>
+        return `<div class="cmpcol ${o.name===st.option?'on':''} ${isRec(o.name)?'rec':''}" data-pick="${esc(o.name)}">
+          <b>${esc(o.name)}</b>${o.tip?`<div class="tip">${esc(o.tip)}</div>`:''}
           <div class="cmpprice">${rr.missing.length ? '<span class="muted">정보 입력 필요</span>' : rr.lines.length ? won(rr.total) : '<span class="muted">가격 없음</span>'}</div>
           <ul>${itemList(o).map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`;
       }).join('')}</div><p class="muted" style="font-size:13px;margin:8px 0 0">추가 항목 제외 금액 · 칸을 누르면 그 종류로 선택됩니다</p>`;
@@ -550,10 +558,13 @@ function renderEditService(id){
     <h2>종류 (패키지)</h2>
     <p class="muted" style="margin-top:-4px;font-size:14px">예: 베이직·스탠다드·프리미엄. 없으면 비워두세요. 검사 항목은 한 줄에 하나씩. "대상"을 정하면 그 종을 골랐을 때만 보입니다.</p>
     <div class="card scroll"><table class="edit" id="opts">
-      <tr><th>이름</th><th>대상</th><th>검사 / 포함 항목</th><th></th></tr>
+      <tr><th>이름</th><th>대상</th><th>추천 문구</th><th>추천 나이 이상</th><th>추천 나이 미만</th><th>검사 / 포함 항목</th><th></th></tr>
       ${s.options.map(o=>`<tr data-id="${o.id}">
         <td style="min-width:140px"><input data-k="name" value="${esc(o.name)}"></td>
         <td>${sel('species', o.species, [['','전체'],['dog','개'],['cat','고양이']])}</td>
+        <td style="min-width:150px"><input data-k="tip" value="${esc(o.tip)}"></td>
+        <td><input data-k="recMin" data-n type="number" step="1" value="${nv(o.recMin)}"></td>
+        <td><input data-k="recMax" data-n type="number" step="1" value="${nv(o.recMax)}"></td>
         <td><textarea data-k="items">${esc(o.items)}</textarea></td>
         <td><button class="btn sm danger" data-del>✕</button></td></tr>`).join('')}
     </table>
