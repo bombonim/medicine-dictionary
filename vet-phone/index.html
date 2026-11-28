@@ -44,6 +44,8 @@ h2{font-size:17px;margin:24px 0 10px}
 .notes{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
 .notes.one{grid-template-columns:minmax(0,760px)}
 .note p a{color:var(--accent);word-break:break-all}
+.pl{display:flex;justify-content:space-between;gap:16px;max-width:440px;border-bottom:1px dotted var(--line)}
+.pv{font-variant-numeric:tabular-nums;white-space:nowrap}
 .note h3{margin:0 0 6px;font-size:16px}
 .note p{margin:0;white-space:pre-wrap;color:var(--ink)}
 .tag{display:inline-block;font-size:12px;background:var(--accent-soft);color:var(--accent);padding:1px 8px;border-radius:999px;margin-right:4px}
@@ -272,6 +274,34 @@ function clinicNotes(){
  고양이 광견병은 선택사항
  → 종합 3차 = 135,000원
  → 종합 3차 + 광견병 = 160,000원`),
+    N('초음파 가격', ['초음파','심장','복부','잠복고환','신장','소변검사','가격'], false,
+`심장 (초진)                    130,000원
+심장 (재진)                     33,000원
+복부                            60,000원
+부분                            33,000원
+잠복고환                        33,000원
+신장 모니터링 + 소변검사        44,000원`),
+    N('방사선 가격', ['방사선','엑스레이','X-Ray','치과방사선','흉복부','가격'], false,
+`기본                    44,000원
+치과 방사선             66,000원
+흉복부                  66,000원
+재진                    22,000원`),
+    N('내복약 가격', ['내복약','약','캡슐','가격'], false,
+`■ 1일 2회
+ ~ 4kg          3,300원
+ 4 ~ 8kg        4,400원
+ 8 ~ 12kg       5,500원
+ 12 ~ 20kg      6,000원
+
+■ 캡슐화: 1일에 550원`),
+    N('키트검사 (심장사상충)', ['키트','키트검사','심장사상충','가격'], false,
+`심장사상충 (강아지)     33,000원
+심장사상충 (고양이)     40,000원`),
+    N('사이토포인트 가격', ['사이토포인트','가려움','피부','주사','가격'], false,
+`2.3 ~ 4.5kg      80,000원
+4.6 ~ 9.1kg     130,000원
+9.2 ~ 13.6kg    160,000원
+13.7 ~ 18.1kg   180,000원`),
     N('건강검진 + 스케일링', ['건강검진','스케일링','노령'], false,
 `■ 나이에 맞는 건강검진 + 스케일링 같이 가능
 
@@ -287,7 +317,7 @@ function clinicNotes(){
 }
 function defaults(){
   return {
-    version:8,
+    version:9,
     services:[
       checkupService(),
       scalingService(),
@@ -361,6 +391,12 @@ function normalize(d){
     fix('발치 상담', ' - 발치 비용 별도, 치아마다 다름 (검색)', ' - 발치 비용 별도, 치아마다 다름: 11,000 ~ 150,000원');
     fix('건강검진 + 스케일링', ' - 치과 방사선 / 발치 비용 별도\n', ' - 치과 방사선 / 발치 비용 별도 (발치: 치아마다 11,000 ~ 150,000원)\n');
     d.version = 8;
+  }
+  // v8 → v9: 초음파·방사선·내복약·키트검사·사이토포인트 가격 안내문 추가
+  if(d.version < 9){
+    const add = ['초음파 가격','방사선 가격','내복약 가격','키트검사 (심장사상충)','사이토포인트 가격'];
+    clinicNotes().filter(n=>add.includes(n.title) && !d.notes.some(x=>x.title===n.title)).forEach(n=>d.notes.push(n));
+    d.version = 9;
   }
   return d;
 }
@@ -472,10 +508,20 @@ function route(){
 window.addEventListener('hashchange', route);
 
 const linkify = h => h.replace(/(https?:\/\/[^\s<"]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+// "이름    12,000원" 줄은 금액이 오른쪽에 붙는 가격표 줄로 보여줌
+function priceRows(h){
+  const lines = h.split('\n'); let out = '';
+  lines.forEach((ln, i) => {
+    const m = ln.match(/^(.*\S)\s{2,}(\S*\d\S*원)\s*$/);
+    if(m) out += `<span class="pl"><span>${m[1]}</span><span class="pv">${m[2]}</span></span>`;
+    else out += ln + (i < lines.length-1 ? '\n' : '');
+  });
+  return out;
+}
 function noteCard(n, q=''){
   return `<div class="card note"><h3>${q?highlight(n.title,q):esc(n.title)}</h3>
     <div style="margin-bottom:6px">${n.tags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>
-    <p>${linkify(q?highlight(n.content,q):esc(n.content))}</p>
+    <p>${priceRows(linkify(q?highlight(n.content,q):esc(n.content)))}</p>
     <div class="row" style="margin-top:10px"><button class="btn sm" data-copy="${esc(n.id)}">복사</button><a class="btn sm" href="#/config/note/${n.id}">수정</a></div></div>`;
 }
 view.addEventListener('click', e=>{
